@@ -1,7 +1,7 @@
 <!-- Modified for WorkPause: replace inherited claims with this fork's actual verification status. -->
 # WorkPause verification
 
-## Schedule-aware manual control (local WorkPause 1.0.6)
+## Schedule-aware manual control (local WorkPause 1.0.4, build 9)
 
 The opt-in **Respect manual Work Profile changes** compares each external manual
 profile transition with the saved schedule for the current local time:
@@ -17,8 +17,10 @@ return after a boundary or saved-rule edit, own request correlation, stale/faile
 requests, duplicate events, missing state, and profile replacement are covered.
 A manual pause is not automatically released by time passing or a saved-rule edit.
 
-The local artifact keeps the WorkPause name/package, version **1.0.6**, code **8**,
-and the independent local signing certificate.
+The local artifact keeps the WorkPause name/package, displayed version **1.0.4**,
+internal version code **9**, and the independent local signing certificate.
+The increased internal code allows an in-place update with the same key without
+losing settings. The schedule-aware implementation is unchanged.
 
 ### Validation results
 
@@ -26,12 +28,15 @@ and the independent local signing certificate.
   7 location, and 12 unlock-reminder tests.
 - Debug lint passed with 12 warnings and 1 informational finding.
 - The signed, optimized release build passed. APK inspection verified version
-  1.0.6 / code 8, the original package, plain WorkPause name, non-debuggable state,
+  1.0.4 / code 9, the original package, plain WorkPause name, non-debuggable state,
   and APK signature.
+- The version-only build 9 was installed in place on the S23. Its About screen
+  displays **Version 1.0.4**. Saved 09:00-18:00 hours, scheduling ON, the paused
+  evening profile, and foreground observation were retained without uninstalling.
 
 ### Samsung Galaxy S23 acceptance
 
-The signed release APK was installed fresh on the connected Galaxy S23 running
+The schedule-aware signed implementation was installed fresh on the connected Galaxy S23 running
 Android 17 / API 37. Silent control, notifications, exact alarms, and the battery
 exemption were configured; the optional manual-control setting was enabled.
 Tests used the real Android **Work apps** Quick Settings tile, with WorkPause's
@@ -68,7 +73,12 @@ These results do not certify every employer policy, real location arrival,
 future timed-alarm delivery, OEM configuration, or battery-consumption percentage.
 Force-stop and explicit service stopping still interrupt background observation.
 
-## Android Work Profile synchronization (local WorkPause 1.0.5)
+## Historical validation records
+
+The following records describe earlier local artifacts, not the current
+1.0.4 / build 9 behavior or download.
+
+### Android Work Profile synchronization (local build 7)
 
 The opt-in synchronization maps external Android profile ON to scheduling ON and
 external OFF to scheduling OFF, during and outside configured work hours.
@@ -123,9 +133,9 @@ Samsung configuration, employer policy, real location arrival, future timed alar
 delivery, or battery-consumption percentage. Force-stop and explicit service
 stopping still interrupt observation.
 
-## WorkPause 1.0.4 verification record
+### WorkPause local build 6 verification record
 
-The current local APK uses the original application ID
+That local APK uses the original application ID
 `io.github.marinfrankovic.workpause`, the **WorkPause** launcher label, version
 **1.0.4**, and version code **6**. It is independently signed, not an official
 author release. Installing it over the author's differently signed APK requires

@@ -154,14 +154,17 @@ reconstructed. No battery-percentage saving or consumption claim is made.
 
 ### Independently signed local build
 
-The local next-version APK is **WorkPause 1.0.6** (version code **8**), with the
+The local next-version APK is **WorkPause 1.0.4** (version code **9**), with the
 normal **WorkPause** launcher label and original application ID
 `io.github.marinfrankovic.workpause`. It has no separate preview variant or suffix.
 It is **not** the author's signed release: it uses an independent local signing
 key.
 
-Earlier builds signed with the same local key update to 1.0.6 **without
+Earlier builds signed with the same local key update to 1.0.4 **without
 uninstalling**, retaining saved rules and grants.
+The displayed version stays **1.0.4**; Android's internal `versionCode` increases
+for installable updates. The current download is
+[WorkPause 1.0.4, build 9](https://github.com/eldarku/WorkPause/releases/tag/v1.0.4-local-build.9).
 
 **Uninstall the author's installed WorkPause before installing this local APK.**
 Android cannot update across different signing keys. Uninstalling clears
@@ -190,7 +193,7 @@ explicit independent-signing notice, not as the author's official release.
 ## App identity
 
 - Application ID: `io.github.marinfrankovic.workpause`
-- Current branch version: `1.0.6` (version code `8`); the author's published release linked above remains `1.0.3`.
+- Current branch version: `1.0.4` (version code `9`); the author's published release linked above remains `1.0.3`.
 - Repository: [marinfrankovic/WorkPause](https://github.com/marinfrankovic/WorkPause)
 
 WorkPause installs separately from the original application. Settings and permission
