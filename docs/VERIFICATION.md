@@ -1,7 +1,13 @@
 <!-- Modified for WorkPause: replace inherited claims with this fork's actual verification status. -->
 # WorkPause verification
 
-## Manual work sessions (unreleased preview)
+## Manual work sessions (local WorkPause 1.0.4)
+
+The current local APK uses the original application ID
+`io.github.marinfrankovic.workpause`, the **WorkPause** launcher label, version
+**1.0.4**, and version code **6**. It is independently signed, not an official
+author release. Installing it over the author's differently signed APK requires
+uninstalling that APK first and repeating setup.
 
 The feature is off by default. It temporarily suspends automation after an
 external work-profile resume outside the current schedule and restores the
@@ -19,7 +25,7 @@ Local unit validation passes **66 tests**, including **23 new manual-session
 policy tests**, the existing 24 schedule tests, 7 location tests, and 12
 unlock-reminder tests. Debug lint passes with 12 warnings and 1 informational
 finding; the new monitor/coordinator/policy files have no lint findings. The
-signed, R8-optimized preview build passes.
+signed, R8-optimized build passes.
 
 ### Isolated runtime acceptance
 
@@ -27,6 +33,10 @@ An Android 15 / API 35 emulator used a disposable managed profile. A separate
 test-only controller requested real quiet-mode transitions through the public
 Android API; no profile broadcasts were forged. The controller is not part of
 the APK or repository.
+
+These functional checks used the original-package debug build and an earlier
+separately packaged candidate. Repackaging as local 1.0.4 changes the version and
+distribution identity, not the manual-session implementation.
 
 - An external after-hours ON while WorkPause's activity was closed started a
   manual session in the background. The profile remained ON through subsequent
@@ -45,14 +55,14 @@ the APK or repository.
   OFF rule did not create an accidental manual session.
 - Removing the managed profile cleared the session and displayed the existing
   no-profile status without changing the saved master switch.
-- The independently installed, non-debuggable preview also passed the real
+- The independently installed, non-debuggable candidate also passed the real
   external ON/OFF workflow. Its monitor was confirmed foreground with
   `specialUse` type `0x40000000`, a silent channel, and an ongoing notification.
 - No WorkPause crash was observed. An unrelated Google Play services work-user
   storage-unlock crash occurred in the disposable image and is not a WorkPause
   compatibility result.
 
-An Android 10 / API 29 emulator installed and launched the same optimized preview.
+An Android 10 / API 29 emulator installed and launched the same optimized candidate.
 The opt-in monitor successfully entered foreground using the pre-14 API branch,
 remained active with the activity closed, and stopped when the master was OFF.
 This stock image does **not** make `MODIFY_QUIET_MODE` ADB-grantable; Android
@@ -68,20 +78,21 @@ interrupt monitoring, and missed event history cannot always be reconstructed.
 ### Artifact inspection
 
 The APK signature verifies with APK Signature Scheme v2 and an independently
-generated RSA-4096 key. The preview has minimum API 29, target API 35, the
-**WorkPause Preview** launcher label, and no debuggable flag. Its monitor is
+generated RSA-4096 key. The local APK has minimum API 29, target API 35, the
+**WorkPause** launcher label, version **1.0.4** / code **6**, and no debuggable flag. Its monitor is
 non-exported. Its certificate SHA-256 is:
 
 ```text
 c747bd5b5c5baf559aaba6adaf69b6c5eb95d038fb166071ab48e19918187c8f
 ```
 
-Use the preview release's attached `SHA256SUMS.txt` for the APK file checksum.
+Use the local release's attached `SHA256SUMS.txt` for the APK file checksum.
 
-The preview uses `io.github.marinfrankovic.workpause.preview`, a separate launcher
-label, and an independent signing key. It is not an update to the author's signed
-APK. The original installation/data remain untouched; turn the original scheduler
-OFF while testing and repeat the one-time setup for the preview package.
+The local APK uses the original package ID but an independent signing key.
+Uninstalling the author's APK clears WorkPause's settings and permissions; repeat
+setup after installing the local build. Switching back to an author-signed APK
+also requires uninstalling the local APK. No personal phone was modified during
+verification.
 
 ## WorkPause 1.0.3 Preview: unlock reminders
 

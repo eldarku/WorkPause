@@ -135,38 +135,41 @@ schedule. Android force-stop, explicit service stopping, and employer/OEM policy
 can interrupt monitoring; reopening WorkPause restores observation and reconciles
 persisted state. Events missed while stopped cannot always be reconstructed.
 
-### Independently signed preview APK
+### Independently signed local build
 
-The manual-session preview is **not** the author's signed release. Its application
-ID is `io.github.marinfrankovic.workpause.preview`, its launcher label is
-**WorkPause Preview**, and it installs alongside the official app without
-uninstalling it or changing its data. Disable scheduling in the original app
-while testing so two schedulers do not compete.
+The local next-version APK is **WorkPause 1.0.4** (version code **6**), with the
+normal **WorkPause** launcher label and original application ID
+`io.github.marinfrankovic.workpause`. It has no separate preview variant or suffix.
+It is **not** the author's signed release: it uses an independent local signing
+key.
 
-The preview needs its own saved schedule, exact-alarm/battery/notification setup,
-and one-time silent-control grant:
+**Uninstall the author's installed WorkPause before installing this local APK.**
+Android cannot update across different signing keys. Uninstalling clears
+WorkPause's saved schedule and permission grants, so note your schedule first and
+repeat the exact-alarm, battery, notification, and silent-control setup:
 
 ```powershell
-adb shell pm grant io.github.marinfrankovic.workpause.preview android.permission.MODIFY_QUIET_MODE
+adb shell pm grant io.github.marinfrankovic.workpause android.permission.MODIFY_QUIET_MODE
 ```
 
 Some older Android versions, including the stock Android 10 test image, do not
 allow this ADB grant. Use the existing visible fallback on those devices; the
-preview does not bypass Android's permission rules.
+local build does not bypass Android's permission rules.
 
-Enable **Respect manual work sessions** in the preview's Settings. The feature
-does not bypass Android's work PIN or employer policy. The author can ship a normal
-in-place update with the official signing key after reviewing the PR.
+Enable **Respect manual work sessions** once in Settings. The feature does not
+bypass Android's work PIN or employer policy. Returning to an author-signed APK
+also requires uninstalling the independently signed local build first. Future
+local builds signed with the same local key can update this installation normally.
 
-Build the optimized, non-debuggable preview with the existing private signing
-setup and `tools\Build-Release.ps1 -Preview`. Its output is
-`app\build\outputs\apk\preview\app-preview.apk`. Never use an independent preview
-key to distribute an APK claiming to update the author's official release.
+Build the optimized, non-debuggable APK with the existing private signing setup
+and `tools\Build-Release.ps1`. Its output is
+`app\build\outputs\apk\release\app-release.apk`. Distribute the local APK with an
+explicit independent-signing notice, not as the author's official release.
 
 ## App identity
 
 - Application ID: `io.github.marinfrankovic.workpause`
-- Current version: `1.0.3` (version code `5`), release title **Preview**
+- Current branch version: `1.0.4` (version code `6`); the author's published release linked above remains `1.0.3`.
 - Repository: [marinfrankovic/WorkPause](https://github.com/marinfrankovic/WorkPause)
 
 WorkPause installs separately from the original application. Settings and permission
