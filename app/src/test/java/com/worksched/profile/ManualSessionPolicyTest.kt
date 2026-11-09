@@ -5,6 +5,11 @@ import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
+import com.worksched.data.DaySchedule
+import com.worksched.data.Schedule
+import java.time.Instant
+import java.time.ZoneId
+import java.util.Calendar
 
 class ManualSessionPolicyTest {
     private val now = 100_000L
@@ -128,9 +133,9 @@ class ManualSessionPolicyTest {
         assertEquals(requested, observe(state = requested, quiet = true, at = now + 1))
     }
 
-    @Test fun `external ON outside hours enables scheduling and preserves manual ON`() {
+    @Test fun `external ON outside hours disables scheduling and records a manual pause`() {
         val decision = ManualSessionPolicy.observe(paused, true, 10L, false, false, now)
-        assertEquals(true, decision.schedulingEnabled)
+        assertEquals(false, decision.schedulingEnabled)
         assertTrue(decision.state.active)
     }
 
@@ -143,14 +148,14 @@ class ManualSessionPolicyTest {
     @Test fun `external OFF during work hours disables scheduling`() {
         val decision = ManualSessionPolicy.observe(paused.copy(quiet = false), true, 10L, true, true, now)
         assertEquals(false, decision.schedulingEnabled)
-        assertFalse(decision.state.active)
+        assertTrue(decision.state.active)
     }
 
     @Test fun `ending after hours session inside changed work hours disables scheduling`() {
         val active = observe()
         val decision = ManualSessionPolicy.observe(active, true, 10L, true, true, now)
         assertEquals(false, decision.schedulingEnabled)
-        assertFalse(decision.state.active)
+        assertTrue(decision.state.active)
     }
 
     @Test fun `manual OFF followed by ON can reenable scheduling`() {
@@ -188,5 +193,109 @@ class ManualSessionPolicyTest {
         assertNull(ManualSessionPolicy.observe(paused, false, 10L, false, false, now).schedulingEnabled)
         assertNull(ManualSessionPolicy.observe(paused, true, 11L, false, false, now).schedulingEnabled)
         assertNull(ManualSessionPolicy.observe(paused, true, null, null, false, now).schedulingEnabled)
+    }
+
+    @Test fun `manual OFF outside hours restores scheduling after an evening manual ON`() {
+        val on = ManualSessionPolicy.observe(paused, true, 10L, false, false, now)
+        val off = ManualSessionPolicy.observe(on.state, true, 10L, true, false, now + 1)
+        assertEquals(false, on.schedulingEnabled)
+        assertEquals(true, off.schedulingEnabled)
+        assertFalse(off.state.active)
+    }
+
+    @Test fun `manual ON during hours clears a daytime manual OFF pause`() {
+        val off = ManualSessionPolicy.observe(paused.copy(quiet = false), true, 10L, true, true, now)
+        val on = ManualSessionPolicy.observe(off.state, true, 10L, false, true, now + 1)
+        assertTrue(off.state.active)
+        assertEquals(true, on.schedulingEnabled)
+        assertFalse(on.state.active)
+    }
+
+    @Test fun `returning after a boundary uses the current schedule not the original pause direction`() {
+        val afternoonOff = ManualSessionPolicy.observe(paused.copy(quiet = false), true, 10L, true, true, now)
+        val eveningOn = ManualSessionPolicy.observe(afternoonOff.state, true, 10L, false, false, now + 1)
+        val eveningOff = ManualSessionPolicy.observe(eveningOn.state, true, 10L, true, false, now + 2)
+        assertEquals(false, eveningOn.schedulingEnabled)
+        assertTrue(eveningOn.state.active)
+        assertEquals(true, eveningOff.schedulingEnabled)
+    }
+
+    @Test fun `time passing or a schedule edit does not alone reenable a manual pause`() {
+        val pausedByDaytimeOff = ManualSessionPolicy.observe(paused.copy(quiet = false), true, 10L, true, true, now)
+        val later = ManualSessionPolicy.observe(pausedByDaytimeOff.state, true, 10L, true, false, now + 1)
+        assertNull(later.schedulingEnabled)
+        assertTrue(later.state.active)
+    }
+
+    @Test fun `both own scheduled directions leave scheduling enabled across a work boundary`() {
+        val ownOff = ManualSessionPolicy.requesting(paused.copy(quiet = false), false, now)
+        val off = ManualSessionPolicy.observe(ownOff, true, 10L, true, false, now + 1)
+        val ownOn = ManualSessionPolicy.requesting(off.state, true, now + 2)
+        val on = ManualSessionPolicy.observe(ownOn, true, 10L, false, true, now + 3)
+        assertNull(off.schedulingEnabled)
+        assertNull(on.schedulingEnabled)
+        assertFalse(off.state.active)
+        assertFalse(on.state.active)
+    }
+
+    @Test fun `nine to eighteen exact scenarios are evaluated even with the master disabled`() {
+        val zone = ZoneId.of("UTC")
+        val schedule = Schedule.default().copy(enabled = false)
+            .withDay(Calendar.MONDAY, DaySchedule(resumeMinutes = 9 * 60, pauseMinutes = 18 * 60))
+        var state = paused.copy(quiet = false)
+        val cases = listOf(
+            Triple("13:00", true, false),
+            Triple("15:00", false, true),
+            Triple("20:00", false, false),
+            Triple("21:00", true, true)
+        )
+        cases.forEach { (time, quiet, expected) ->
+            val at = Instant.parse("2026-11-09T$time:00Z").toEpochMilli()
+            if (time == "20:00") {
+                val end = Instant.parse("2026-11-09T18:00:00Z").toEpochMilli()
+                val ownPause = ManualSessionPolicy.requesting(state, false, end)
+                val scheduledPause = ManualSessionPolicy.observe(ownPause, true, 10L, true, false, end + 1)
+                assertNull(scheduledPause.schedulingEnabled)
+                state = scheduledPause.state
+            }
+            val decision = ManualSessionPolicy.observe(state, true, 10L, quiet,
+                schedule.copy(enabled = true).isActiveAt(at, zone), at)
+            assertEquals("manual profile switch at $time", expected, decision.schedulingEnabled)
+            assertEquals(!expected, decision.state.active)
+            state = decision.state
+        }
+    }
+
+    @Test fun `start boundary is ON and end boundary is OFF for manual comparison`() {
+        val zone = ZoneId.of("UTC")
+        val schedule = Schedule.default()
+            .withDay(Calendar.MONDAY, DaySchedule(resumeMinutes = 9 * 60, pauseMinutes = 18 * 60))
+        listOf("08:59" to false, "09:00" to true, "17:59" to true, "18:00" to false).forEach { (time, active) ->
+            val at = Instant.parse("2026-11-09T$time:00Z").toEpochMilli()
+            val actualActive = schedule.isActiveAt(at, zone)
+            assertEquals(active, actualActive)
+            val on = ManualSessionPolicy.observe(paused, true, 10L, false, actualActive, at)
+            val off = ManualSessionPolicy.observe(paused.copy(quiet = false), true, 10L, true, actualActive, at)
+            assertEquals(active, on.schedulingEnabled)
+            assertEquals(!active, off.schedulingEnabled)
+        }
+    }
+
+    @Test fun `manual agreement respects overnight and all day rules`() {
+        val zone = ZoneId.of("UTC")
+        val schedule = Schedule.default()
+            .withDay(Calendar.MONDAY, DaySchedule(resumeMinutes = 22 * 60, pauseMinutes = 6 * 60))
+        val overnight = Instant.parse("2026-11-10T02:00:00Z").toEpochMilli()
+        val on = ManualSessionPolicy.observe(paused, true, 10L, false, schedule.isActiveAt(overnight, zone), overnight)
+        val off = ManualSessionPolicy.observe(paused.copy(quiet = false), true, 10L, true,
+            schedule.isActiveAt(overnight, zone), overnight)
+        assertEquals(true, on.schedulingEnabled)
+        assertEquals(false, off.schedulingEnabled)
+        listOf(com.worksched.data.DayMode.ALL_ON to true, com.worksched.data.DayMode.ALL_OFF to false).forEach { (mode, active) ->
+            val allDay = schedule.withDay(Calendar.TUESDAY, DaySchedule(mode = mode))
+            val scheduled = allDay.copy(enabled = true).isActiveAt(overnight, zone)
+            assertEquals(active, scheduled)
+            assertEquals(active, ManualSessionPolicy.observe(paused, true, 10L, false, scheduled, overnight).schedulingEnabled)
+        }
     }
 }

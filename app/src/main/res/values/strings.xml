@@ -25,14 +25,14 @@
     <string name="unlock_wait_for_android">Android has not finished resuming the profile. Complete any Android credential screen, then return and try again if needed.</string>
     <string name="unlock_launch_failed">Android could not open this work app. It may have been removed or restricted. Use the work-app icon in your phone launcher.</string>
     <string name="unlock_location_not_verified">Your saved location rule could not be verified. WorkPause will not resume the profile from this reminder.</string>
-    <string name="manual_setting_title">Sync Android Work Profile switches</string>
-    <string name="manual_setting_description">Android Work Profile ON enables scheduling; OFF disables it. Manual ON outside saved hours stays ON until you switch it OFF. Monitoring continues while scheduling is OFF, with a quiet ongoing notification and no polling. Turn this option OFF to stop monitoring.</string>
+    <string name="manual_setting_title">Respect manual Work Profile changes</string>
+    <string name="manual_setting_description">After a manual Android profile switch, scheduling turns OFF if the profile differs from your saved schedule for the current time, or ON if it matches. During work hours: manual OFF pauses scheduling; ON restores it. Outside work hours: manual ON pauses scheduling; OFF restores it. Monitoring stays active while scheduling is OFF, with a quiet notification and no polling.</string>
     <string name="manual_channel_name">Work profile synchronization</string>
     <string name="manual_channel_description">Observes Android profile switches even while scheduling is OFF. No sound or pop-up.</string>
     <string name="manual_monitor_watching">Watching for manual work-profile changes</string>
-    <string name="manual_monitor_paused">Scheduling ON. Manual work profile stays ON.</string>
-    <string name="manual_monitor_off">Scheduling OFF. Watching for Android Work Profile ON.</string>
-    <string name="manual_paused_status">ON - work profile enabled manually.</string>
+    <string name="manual_monitor_paused">Scheduling OFF. Manually return the profile to its scheduled state to resume.</string>
+    <string name="manual_monitor_off">Scheduling OFF. Watching for manual changes that match the schedule.</string>
+    <string name="manual_paused_status">OFF - paused for a manual profile change.</string>
     <string name="manual_off_status">OFF - monitoring Android work-profile switches.</string>
     <string name="manual_monitor_stopped">Monitoring is not running. Open Settings to retry.</string>
 </resources>

@@ -36,15 +36,15 @@ object ManualSessionPolicy {
             previous.expectedUntil - now <= OWN_REQUEST_WINDOW_MS
         val ownChange = previous.expectedQuiet == quiet && requestPending
         val externalChange = previous.quiet != null && previous.quiet != quiet && !ownChange
-        val manualResume = externalChange && !quiet && !scheduledActive
+        val matchesSchedule = !quiet == scheduledActive
         val keepRequest = !ownChange && !externalChange && requestPending
         val state = previous.copy(
             quiet = quiet,
-            active = !quiet && (previous.active || manualResume),
+            active = if (externalChange) !matchesSchedule else previous.active,
             expectedQuiet = if (keepRequest) previous.expectedQuiet else null,
             expectedUntil = if (keepRequest) previous.expectedUntil else 0L
         )
-        return ManualSessionObservation(state, if (externalChange) !quiet else null)
+        return ManualSessionObservation(state, if (externalChange) matchesSchedule else null)
     }
 
     fun requesting(state: ManualSessionState, enable: Boolean, now: Long): ManualSessionState =

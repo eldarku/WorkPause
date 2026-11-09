@@ -124,7 +124,7 @@
             android:foregroundServiceType="specialUse">
             <property
                 android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"
-                android:value="Observe manual Android work-profile switches to synchronize scheduling ON/OFF, including while scheduling is OFF, and preserve manual after-hours activation without polling." />
+                android:value="Observe manual Android work-profile switches to pause scheduling when the profile differs from the current saved schedule and resume it when a manual switch restores agreement, including while scheduling is OFF, without polling." />
         </service>
 
         <service

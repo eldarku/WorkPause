@@ -106,31 +106,45 @@ WorkPause is OFF does not turn it on or change the work profile.
 
 <img src="docs/screenshots/workpause-main.png" width="320" alt="WorkPause compact header and per-day scheduler in the Android emulator">
 
-## Android Work Profile synchronization
+## Schedule-aware manual Work Profile control
 
-The optional **Settings > Sync Android Work Profile switches** feature connects
-Android's normal profile control to WorkPause's main scheduling switch:
+Enable **Settings > Respect manual Work Profile changes** once to use Android's
+normal Work Profile control without having to manage WorkPause separately.
+The option is **off by default**.
 
-1. Enable the option once. It is **off by default**; existing behavior is unchanged.
-2. Turn the work profile **ON in Android**: WorkPause's scheduling switch becomes
-   **ON**, including if scheduling was OFF.
-3. Turn the work profile **OFF in Android**: scheduling becomes **OFF**, including
-   during saved working hours. Pending retries, geofences, and unlock reminders
-   are cancelled; WorkPause does not immediately resume the profile.
-4. The next manual Android ON enables scheduling again without opening WorkPause.
+After each manual profile switch in Android, WorkPause compares the new profile
+state with the **saved weekly schedule for the current local time**:
 
-Manual ON outside the saved work window keeps the profile ON until you manually
-turn it OFF. This protection survives schedule edits and boundaries. WorkPause's
-own scheduled profile changes do **not** disable scheduling or create a manual
-override, so the next normal scheduled start still works.
+- **Different from the schedule:** scheduling turns **OFF**, leaving your manual
+  choice alone and cancelling automatic profile changes.
+- **Matches the schedule:** scheduling turns **ON** again and future schedule
+  changes are restored.
 
-Manual OFF disables future schedule alarms until a manual Android ON or explicit
-WorkPause ON enables them. It is not a pause only until tomorrow's scheduled start.
-The saved switch and profile status update live without overwriting unfinished
-daily edits.
+For a saved **09:00-18:00** work window:
+
+| Time | Manual Android profile switch | Scheduling |
+|---|---|---|
+| 13:00 | OFF, contrary to the scheduled ON state | OFF |
+| 15:00 | ON, matching the scheduled ON state | ON |
+| 20:00 | ON, contrary to the scheduled OFF state | OFF |
+| 21:00 | OFF, matching the scheduled OFF state | ON |
+
+This is **not** direct ON-to-ON / OFF-to-OFF mirroring. Evening manual OFF
+restores scheduling even though the work profile stays OFF.
+
+Comparison uses the saved rules even while scheduling is OFF, not unsaved edits
+or the state that was expected when the manual pause began. Overnight and all-day
+rules are included. A schedule edit or clock boundary alone does not end a manual
+pause; a subsequent manual switch is evaluated against the schedule at that
+moment. Explicit in-app WorkPause ON can also restore normal scheduling.
+
+WorkPause's own scheduled profile changes and unlock-only events do not count as
+manual switches. A normal scheduled pause leaves scheduling ON for the next start.
+The main switch and profile status update live without replacing unsaved edits.
 
 Monitoring remains active **while the option is enabled, even when scheduling is
-OFF**, so it can observe the next Android ON. It uses profile-change events, no
+OFF**, so it can observe the next manual return to the scheduled state.
+It uses profile-change events, no
 continuous polling or wake lock, and a quiet ongoing **Work profile synchronization**
 notification. Turning the option OFF stops monitoring and leaves the saved
 scheduling switch as set. Explicit in-app switch changes still apply the normal
@@ -140,14 +154,14 @@ reconstructed. No battery-percentage saving or consumption claim is made.
 
 ### Independently signed local build
 
-The local next-version APK is **WorkPause 1.0.5** (version code **7**), with the
+The local next-version APK is **WorkPause 1.0.6** (version code **8**), with the
 normal **WorkPause** launcher label and original application ID
 `io.github.marinfrankovic.workpause`. It has no separate preview variant or suffix.
 It is **not** the author's signed release: it uses an independent local signing
 key.
 
-The locally signed 1.0.4 build updates to 1.0.5 **without uninstalling**, retaining
-its saved rules and grants.
+Earlier builds signed with the same local key update to 1.0.6 **without
+uninstalling**, retaining saved rules and grants.
 
 **Uninstall the author's installed WorkPause before installing this local APK.**
 Android cannot update across different signing keys. Uninstalling clears
@@ -162,8 +176,8 @@ Some older Android versions, including the stock Android 10 test image, do not
 allow this ADB grant. Use the existing visible fallback on those devices; the
 local build does not bypass Android's permission rules.
 
-Enable **Sync Android Work Profile switches** once in Settings. An enabled option
-from the locally signed 1.0.4 installation remains enabled after updating. The feature does not
+Enable **Respect manual Work Profile changes** once in Settings. An enabled option
+from an earlier locally signed installation remains enabled after updating. The feature does not
 bypass Android's work PIN or employer policy. Returning to an author-signed APK
 also requires uninstalling the independently signed local build first. Future
 local builds signed with the same local key can update this installation normally.
@@ -176,7 +190,7 @@ explicit independent-signing notice, not as the author's official release.
 ## App identity
 
 - Application ID: `io.github.marinfrankovic.workpause`
-- Current branch version: `1.0.5` (version code `7`); the author's published release linked above remains `1.0.3`.
+- Current branch version: `1.0.6` (version code `8`); the author's published release linked above remains `1.0.3`.
 - Repository: [marinfrankovic/WorkPause](https://github.com/marinfrankovic/WorkPause)
 
 WorkPause installs separately from the original application. Settings and permission

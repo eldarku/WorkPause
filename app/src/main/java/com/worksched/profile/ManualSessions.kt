@@ -87,7 +87,7 @@ object ManualSessions {
             WorkProfileUnlockNotifier.cancel(context)
         }
         if (next.schedulingEnabled != null && saved.manual.enabled) {
-            Log.i(TAG, "External profile switch synchronized scheduling: enabled=${saved.schedule.enabled}")
+            Log.i(TAG, "Manual profile state compared with current schedule: schedulingEnabled=${saved.schedule.enabled}")
             AlarmScheduler.scheduleAll(context, saved.schedule)
         } else if (!saved.manual.state.active && snapshot.manual.state.active && saved.schedule.enabled) {
             AlarmScheduler.requestReconcile(context)

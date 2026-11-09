@@ -102,7 +102,7 @@ class ToggleReceiver : BroadcastReceiver() {
                         resumeNow(store, appCtx, System.currentTimeMillis() + DEFER_WINDOW_MS)
                     }
                 } finally {
-                    AlarmScheduler.scheduleAll(appCtx, schedule)
+                    AlarmScheduler.scheduleAll(appCtx, store.automationSnapshot().schedule)
                 }
             } finally {
                 pending.finish()

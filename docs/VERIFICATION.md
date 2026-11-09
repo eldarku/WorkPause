@@ -1,6 +1,73 @@
 <!-- Modified for WorkPause: replace inherited claims with this fork's actual verification status. -->
 # WorkPause verification
 
+## Schedule-aware manual control (local WorkPause 1.0.6)
+
+The opt-in **Respect manual Work Profile changes** compares each external manual
+profile transition with the saved schedule for the current local time:
+disagreement turns scheduling OFF, agreement turns it ON. The schedule is
+evaluated independently of the master enabled flag. Own scheduled requests,
+unlock-only events, and initial profile baselines do not change the master switch.
+Observation remains active while the option is enabled, including scheduling OFF.
+
+Regression coverage includes the exact 09:00-18:00 examples: manual OFF at 13:00
+disables scheduling, ON at 15:00 restores it, ON at 20:00 disables scheduling, and
+OFF at 21:00 restores it. Start/end boundaries, overnight/all-day rules, a manual
+return after a boundary or saved-rule edit, own request correlation, stale/failed
+requests, duplicate events, missing state, and profile replacement are covered.
+A manual pause is not automatically released by time passing or a saved-rule edit.
+
+The local artifact keeps the WorkPause name/package, version **1.0.6**, code **8**,
+and the independent local signing certificate.
+
+### Validation results
+
+- **84 unit tests passed:** 41 manual-control policy tests, 24 weekly-schedule,
+  7 location, and 12 unlock-reminder tests.
+- Debug lint passed with 12 warnings and 1 informational finding.
+- The signed, optimized release build passed. APK inspection verified version
+  1.0.6 / code 8, the original package, plain WorkPause name, non-debuggable state,
+  and APK signature.
+
+### Samsung Galaxy S23 acceptance
+
+The signed release APK was installed fresh on the connected Galaxy S23 running
+Android 17 / API 37. Silent control, notifications, exact alarms, and the battery
+exemption were configured; the optional manual-control setting was enabled.
+Tests used the real Android **Work apps** Quick Settings tile, with WorkPause's
+activity in the background during each profile toggle. No broadcasts were forged
+and no separate test-controller application was installed on the phone.
+
+The actual evening clock was left unchanged. Two saved work windows exercised
+both schedule states on the device:
+
+- With **09:00-18:00**, manual Android ON set scheduling OFF while the profile
+  remained ON. Manual Android OFF restored scheduling ON while the profile
+  correctly stayed OFF.
+- With **09:00-23:00**, manual Android OFF set scheduling OFF and left the profile
+  paused without a stale unlock reminder. Manual Android ON restored scheduling
+  ON. Manual pauses remained stable through 10-second dwell checks.
+- An unsaved 23:00 end-time edit did not affect comparison with the saved
+  18:00 rule, and external transitions did not overwrite that unfinished edit.
+- Saving an active rule resumed the profile through WorkPause without disabling
+  scheduling. Restoring the OFF rule paused the profile with scheduling still ON.
+  An ordinary scheduled resume briefly showed its existing conditional unlock
+  reminder while Android settled, then reached the normal ON status; this was not
+  a manual-OFF override failure.
+- Editing the saved window during a manual pause did not release it. Explicitly
+  reopening after force-stop restored the persisted pause and observation.
+  Another manual switch that still disagreed with the edited window kept
+  scheduling OFF; a later switch into agreement restored it.
+- The final saved configuration is **Monday-Friday 09:00-18:00**, Saturday/Sunday
+  **All day OFF**, scheduling **ON**, and the work profile correctly **OFF** in
+  the evening. Foreground monitoring remained active, including during pauses.
+
+The exact 13:00, 15:00, 20:00, and 21:00 timestamps are covered by policy tests;
+the real phone was not time-shifted. No work PIN was read or entered by the test.
+These results do not certify every employer policy, real location arrival,
+future timed-alarm delivery, OEM configuration, or battery-consumption percentage.
+Force-stop and explicit service stopping still interrupt background observation.
+
 ## Android Work Profile synchronization (local WorkPause 1.0.5)
 
 The opt-in synchronization maps external Android profile ON to scheduling ON and

@@ -134,8 +134,8 @@ class ManualSessionService : Service() {
             .setSmallIcon(android.R.drawable.ic_menu_my_calendar)
             .setContentTitle(getString(R.string.manual_channel_name))
             .setContentText(getString(when {
-                !scheduling -> R.string.manual_monitor_off
                 active -> R.string.manual_monitor_paused
+                !scheduling -> R.string.manual_monitor_off
                 else -> R.string.manual_monitor_watching
             }))
             .setContentIntent(open)

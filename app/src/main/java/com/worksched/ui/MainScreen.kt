@@ -360,9 +360,9 @@ fun MainScreen() {
             )
             if (ready) Text(
                 when {
+                    !workPauseEnabled && manualSession.enabled && manualSession.state.active -> stringResource(R.string.manual_paused_status)
                     !workPauseEnabled && manualSession.enabled -> stringResource(R.string.manual_off_status)
                     !workPauseEnabled -> "OFF - work apps stay as set on your phone."
-                    manualSession.enabled && manualSession.state.active -> stringResource(R.string.manual_paused_status)
                     else -> "ON - following your saved schedule."
                 },
                 style = MaterialTheme.typography.bodySmall,
@@ -438,8 +438,8 @@ fun MainScreen() {
                 manualStatus = when {
                     monitor.error != null -> requireNotNull(monitor.error)
                     !monitor.running -> ctx.getString(R.string.manual_monitor_stopped)
-                    !workPauseEnabled -> ctx.getString(R.string.manual_monitor_off)
                     manualSession.state.active -> ctx.getString(R.string.manual_monitor_paused)
+                    !workPauseEnabled -> ctx.getString(R.string.manual_monitor_off)
                     else -> ctx.getString(R.string.manual_monitor_watching)
                 },
                 manualEditable = ready && !saving,
@@ -1049,7 +1049,7 @@ private fun HelpDialog(onDismiss: () -> Unit) {
             Column(modifier = Modifier.verticalScroll(rememberScrollState())) {
                 HelpPara("Daily behavior", "Select a weekday and choose Schedule, All day ON, or All day OFF. Schedule keeps work apps ON from the From time until the To time; an earlier To time means the next day. All day OFF takes priority at midnight over previous overnight hours.")
                 HelpPara("WorkPause ON or OFF", "ON follows your saved weekly schedule and applies the current scheduled state. OFF stops WorkPause's automatic changes and leaves work apps as set on your phone. The switch applies immediately, without saving. It does not change your phone's own settings or employer policies.")
-                HelpPara("Android profile switches (optional)", "Enable Sync Android Work Profile switches in Settings. A manual Android ON enables scheduling; a manual Android OFF disables scheduling and cancels pending automatic actions. Manual ON outside saved hours keeps work apps ON until you switch them OFF. WorkPause's own scheduled changes do not switch scheduling off. Monitoring continues while scheduling is OFF so the next manual Android ON can enable it again. Turn the option OFF to stop monitoring. Force-stopping WorkPause interrupts observation until it can run again.")
+                HelpPara("Manual profile changes (optional)", "Enable Respect manual Work Profile changes in Settings. After each manual Android profile switch, WorkPause compares the new profile state with your saved schedule for the current time, even while scheduling is OFF. A mismatch turns scheduling OFF so WorkPause leaves your choice alone; a match turns scheduling ON again. For 09:00-18:00 hours: manual OFF at 13:00 pauses scheduling and ON at 15:00 restores it; manual ON at 20:00 pauses scheduling and OFF at 21:00 restores it. A time boundary or a schedule edit alone does not end a manual pause. Own scheduled changes do not count as manual switches. Monitoring stays active while the option is enabled; turn the option OFF to stop it. Force-stop interrupts observation.")
                 HelpPara("Copy and save", "Copy to other days replaces the selected days' behavior and times. Save schedule applies daily edits only. The WorkPause switch uses the saved schedule, not unsaved edits. Saving while WorkPause is OFF does not turn it on.")
                 HelpPara("Silent mode", "After a one-time ADB grant (MODIFY_QUIET_MODE), the app pauses/resumes your work profile via a direct system call — instant, no screen, no Quick Settings panel. No root.")
                 HelpPara("Visible fallback", "Without the grant, it taps the Quick Settings ‘Work apps’ tile via an Accessibility service, which briefly shows the panel.")
