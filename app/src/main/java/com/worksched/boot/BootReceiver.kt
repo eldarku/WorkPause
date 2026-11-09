@@ -7,6 +7,7 @@ import com.worksched.alarm.AlarmScheduler
 import com.worksched.data.ScheduleStore
 import com.worksched.location.GeofenceManager
 import com.worksched.location.LocationGate
+import com.worksched.profile.ManualSessions
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.first
@@ -34,7 +35,7 @@ class BootReceiver : BroadcastReceiver() {
                 val store = ScheduleStore(appCtx)
                 if (!store.geofenceArmed()) return@launch
                 val s = store.scheduleFlow.first()
-                if (s.hasValidLocation() && LocationGate.inResumeWindowNow(s)) {
+                if (s.hasValidLocation() && LocationGate.inResumeWindowNow(s) && ManualSessions.allows(appCtx, true)) {
                     GeofenceManager.arm(
                         appCtx, s.latitude!!, s.longitude!!,
                         s.radiusMeters, LocationGate.resumeWindowEndMillis(s)

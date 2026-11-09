@@ -124,10 +124,10 @@ class UnlockWorkProfileActivity : ComponentActivity() {
                     message = getString(R.string.unlock_use_phone_controls)
                     return@launch
                 }
-                val resumed = QuietModeBackend.resumeFromUserAction(this@UnlockWorkProfileActivity)
+                val resumed = WorkProfileToggler.resumeFromUserAction(this@UnlockWorkProfileActivity)
                 AlarmScheduler.requestReconcile(this@UnlockWorkProfileActivity)
                 refresh()
-                if (!resumed) message = getString(R.string.unlock_wait_for_android)
+                if (resumed == ToggleResult.DEFERRED) message = getString(R.string.unlock_wait_for_android)
             } finally {
                 busy = false
             }
@@ -161,6 +161,11 @@ class UnlockWorkProfileActivity : ComponentActivity() {
     }
 
     private suspend fun authorize(): Boolean {
+        if (!ManualSessions.allows(this, true)) {
+            available = false
+            message = getString(R.string.unlock_no_longer_needed)
+            return false
+        }
         val state = WorkProfileUnlockNotifier.refresh(this)
         if (state == UnlockReminderState.NONE || state == UnlockReminderState.WAIT_FOR_PHONE_UNLOCK) {
             refresh()

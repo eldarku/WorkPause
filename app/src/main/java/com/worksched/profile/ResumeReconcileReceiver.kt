@@ -56,7 +56,7 @@ class ResumeReconcileReceiver : BroadcastReceiver() {
                 return
             }
             val schedule = store.scheduleFlow.first()
-            if (!schedule.enabled || !schedule.isActiveAt()) {
+            if (!schedule.enabled || !schedule.isActiveAt() || !ManualSessions.allows(context, true)) {
                 Log.i(TAG, "Schedule no longer authorizes this deferred resume")
                 store.setPendingResume(false, 0L)
                 ResumeRetryScheduler.cancel(context)
@@ -76,7 +76,13 @@ class ResumeReconcileReceiver : BroadcastReceiver() {
                 }
             }
             if (!store.pendingResume() || store.pendingResumeDeadline() <= System.currentTimeMillis()) return
-            if (WorkProfileToggler.toggle(context, enable = true)) {
+            val result = WorkProfileToggler.toggle(context, enable = true)
+            if (result == ToggleResult.BLOCKED) {
+                store.setPendingResume(false, 0L)
+                ResumeRetryScheduler.cancel(context)
+                return
+            }
+            if (result == ToggleResult.SUCCEEDED) {
                 store.setPendingResume(false, 0L)
                 ResumeRetryScheduler.cancel(context)
                 val nm = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager

@@ -17,9 +17,29 @@ class WorkProfileDetector(private val context: Context) {
 
     fun isWorkProfilePresent(): Boolean = workProfileHandle() != null
 
+    fun workProfileSerial(): Long? {
+        val handle = workProfileHandle() ?: return null
+        return try {
+            userManager.getSerialNumberForUser(handle).takeIf { it >= 0L }.also {
+                if (it == null) Log.w("WorkProfileDetector", "Work profile has no accessible serial number")
+            }
+        } catch (e: SecurityException) {
+            Log.w("WorkProfileDetector", "Android denied the work-profile serial query", e)
+            null
+        }
+    }
+
     fun isWorkProfileQuiet(): Boolean? {
         val handle = workProfileHandle() ?: return null
-        return runCatching { userManager.isQuietModeEnabled(handle) }.getOrNull()
+        return try {
+            userManager.isQuietModeEnabled(handle)
+        } catch (e: SecurityException) {
+            Log.w("WorkProfileDetector", "Android denied the quiet-mode query", e)
+            null
+        } catch (e: IllegalArgumentException) {
+            Log.w("WorkProfileDetector", "Work profile changed during quiet-mode query", e)
+            null
+        }
     }
 
     fun isWorkProfileStorageUnlocked(): Boolean? {

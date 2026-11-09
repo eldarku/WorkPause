@@ -8,11 +8,11 @@ import android.content.Intent
 import android.os.Build
 import com.worksched.BuildConfig
 import com.worksched.data.Schedule
-import com.worksched.data.ScheduleStore
 import com.worksched.data.DayMode
+import com.worksched.profile.ManualSessions
+import com.worksched.service.ManualSessionService
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import java.util.Calendar
 
@@ -29,8 +29,8 @@ object AlarmScheduler {
 
     fun scheduleAllAsync(context: Context) {
         CoroutineScope(Dispatchers.Default).launch {
-            val store = ScheduleStore(context.applicationContext)
-            val schedule = store.scheduleFlow.first()
+            val schedule = ManualSessions.refresh(context.applicationContext).schedule
+            ManualSessionService.update(context.applicationContext)
             scheduleAll(context.applicationContext, schedule)
             requestReconcile(context.applicationContext)
         }

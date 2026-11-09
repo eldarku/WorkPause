@@ -1,6 +1,88 @@
 <!-- Modified for WorkPause: replace inherited claims with this fork's actual verification status. -->
 # WorkPause verification
 
+## Manual work sessions (unreleased preview)
+
+The feature is off by default. It temporarily suspends automation after an
+external work-profile resume outside the current schedule and restores the
+schedule after the user pauses the profile. It does not change the saved master
+switch or add a daytime manual-OFF override.
+
+The monitor is a non-exported, event-driven foreground service with a silent,
+low-importance notification channel. It has no polling loop or wake lock.
+Android 14+ uses the declared `specialUse` type and subtype explanation. Private
+session state uses DataStore and the public user-serial API rather than hidden
+UserHandle APIs. Own requests are tracked before dispatch and bounded, so failed,
+expired, duplicate, or unrelated transitions are not treated as manual sessions.
+
+Local unit validation passes **66 tests**, including **23 new manual-session
+policy tests**, the existing 24 schedule tests, 7 location tests, and 12
+unlock-reminder tests. Debug lint passes with 12 warnings and 1 informational
+finding; the new monitor/coordinator/policy files have no lint findings. The
+signed, R8-optimized preview build passes.
+
+### Isolated runtime acceptance
+
+An Android 15 / API 35 emulator used a disposable managed profile. A separate
+test-only controller requested real quiet-mode transitions through the public
+Android API; no profile broadcasts were forged. The controller is not part of
+the APK or repository.
+
+- An external after-hours ON while WorkPause's activity was closed started a
+  manual session in the background. The profile remained ON through subsequent
+  reconciliation, and reopening the app showed the temporary-pause status.
+- External OFF ended the session and restored normal scheduling automatically.
+- Master OFF preserved the running profile, stopped observation, and remained
+  OFF through subsequent external OFF/ON changes. Turning the master back ON
+  applied the saved OFF rule without classifying that own action as manual.
+- Turning the opt-in setting OFF during a session reapplied the saved OFF rule
+  and stopped the monitoring service.
+- Force-stop followed by explicit reopening restored a persisted running manual
+  session without pausing the profile. A profile paused while WorkPause was
+  stopped ended the persisted session on reopening.
+- Changing the saved rule from All day OFF to All day ON retained an existing
+  manual session. Ending that session applied the new ON rule; returning to an
+  OFF rule did not create an accidental manual session.
+- Removing the managed profile cleared the session and displayed the existing
+  no-profile status without changing the saved master switch.
+- The independently installed, non-debuggable preview also passed the real
+  external ON/OFF workflow. Its monitor was confirmed foreground with
+  `specialUse` type `0x40000000`, a silent channel, and an ongoing notification.
+- No WorkPause crash was observed. An unrelated Google Play services work-user
+  storage-unlock crash occurred in the disposable image and is not a WorkPause
+  compatibility result.
+
+An Android 10 / API 29 emulator installed and launched the same optimized preview.
+The opt-in monitor successfully entered foreground using the pre-14 API branch,
+remained active with the activity closed, and stopped when the master was OFF.
+This stock image does **not** make `MODIFY_QUIET_MODE` ADB-grantable; Android
+explicitly rejected the grant as a non-changeable permission. No platform
+permission workaround was used. Full Android 10 quiet-mode automation was
+therefore **not** verified; the existing visible fallback remains the alternative.
+
+These results do not verify Samsung notification behavior, actual future alarm
+delivery, battery percentages, every employer policy, real locked/PIN sessions,
+or real-device location arrivals. Force-stop and explicit service stopping can
+interrupt monitoring, and missed event history cannot always be reconstructed.
+
+### Artifact inspection
+
+The APK signature verifies with APK Signature Scheme v2 and an independently
+generated RSA-4096 key. The preview has minimum API 29, target API 35, the
+**WorkPause Preview** launcher label, and no debuggable flag. Its monitor is
+non-exported. Its certificate SHA-256 is:
+
+```text
+c747bd5b5c5baf559aaba6adaf69b6c5eb95d038fb166071ab48e19918187c8f
+```
+
+Use the preview release's attached `SHA256SUMS.txt` for the APK file checksum.
+
+The preview uses `io.github.marinfrankovic.workpause.preview`, a separate launcher
+label, and an independent signing key. It is not an update to the author's signed
+APK. The original installation/data remain untouched; turn the original scheduler
+OFF while testing and repeat the one-time setup for the preview package.
+
 ## WorkPause 1.0.3 Preview: unlock reminders
 
 The release uses version name **1.0.3**, version code **5**, and the existing

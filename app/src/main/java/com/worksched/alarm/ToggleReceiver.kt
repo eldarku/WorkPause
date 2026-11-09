@@ -16,6 +16,8 @@ import com.worksched.location.LocationGate
 import com.worksched.profile.WorkProfileToggler
 import com.worksched.profile.WorkProfileDetector
 import com.worksched.profile.WorkProfileUnlockNotifier
+import com.worksched.profile.ManualSessions
+import com.worksched.profile.ToggleResult
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.first
@@ -45,6 +47,10 @@ class ToggleReceiver : BroadcastReceiver() {
                         return@launch
                     }
                     val enable = schedule.isActiveAt()
+                    if (!ManualSessions.allows(appCtx, enable)) {
+                        Log.i(TAG, "Reconciliation yielded to manual work session or changed schedule")
+                        return@launch
+                    }
                     val silent = WorkProfileToggler.isSilent(appCtx)
                     if (enable && schedule.locationEnabled &&
                         (!silent || !schedule.hasValidLocation() || !LocationGate.inResumeWindowNow(schedule))) {
@@ -70,7 +76,7 @@ class ToggleReceiver : BroadcastReceiver() {
                         return@launch
                     }
                     if (!enable) {
-                        WorkProfileToggler.toggle(appCtx, false)
+                        if (WorkProfileToggler.toggle(appCtx, false) == ToggleResult.BLOCKED) return@launch
                         store.setPendingResume(false, 0L)
                         ResumeRetryScheduler.cancel(appCtx)
                         if (store.geofenceArmed()) {
@@ -105,7 +111,9 @@ class ToggleReceiver : BroadcastReceiver() {
     }
 
     private suspend fun resumeNow(store: ScheduleStore, context: Context, deadline: Long) {
-        if (WorkProfileToggler.toggle(context, true)) {
+        val result = WorkProfileToggler.toggle(context, true)
+        if (result == ToggleResult.BLOCKED) return
+        if (result == ToggleResult.SUCCEEDED) {
             store.setPendingResume(false, 0L)
             ResumeRetryScheduler.cancel(context)
             postNotification(context, true)

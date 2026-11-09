@@ -15,6 +15,8 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
+import com.worksched.profile.ManualSessionSettings
+import com.worksched.profile.ManualSessionState
 
 private val Context.dataStore: DataStore<Preferences> by preferencesDataStore(name = "worksched")
 
@@ -24,6 +26,12 @@ class ScheduleStore(private val context: Context) {
     private val pendingResumeDeadlineKey = longPreferencesKey("pending_resume_deadline")
     private val geofenceArmedKey = booleanPreferencesKey("geofence_armed")
     private val unlockReminderKey = booleanPreferencesKey("unlock_reminder_requested")
+    private val manualEnabledKey = booleanPreferencesKey("manual_sessions_enabled")
+    private val manualProfileKey = longPreferencesKey("manual_session_profile_serial")
+    private val manualQuietKey = booleanPreferencesKey("manual_session_quiet")
+    private val manualActiveKey = booleanPreferencesKey("manual_session_active")
+    private val manualExpectedKey = booleanPreferencesKey("manual_session_expected")
+    private val manualExpectedUntilKey = longPreferencesKey("manual_session_expected_until")
     private val json = Json { ignoreUnknownKeys = true }
 
     private fun decodeSchedule(raw: String?): Schedule =
@@ -55,8 +63,49 @@ class ScheduleStore(private val context: Context) {
             prefs[pendingResumeKey] = false
             prefs[pendingResumeDeadlineKey] = 0L
             if (!enabled) prefs[unlockReminderKey] = false
+            if (!enabled) writeManualState(prefs, ManualSessionState())
         }
         return decodeSchedule(saved[scheduleKey])
+    }
+
+    private fun manualSettings(prefs: Preferences) = ManualSessionSettings(
+        enabled = prefs[manualEnabledKey] ?: false,
+        state = ManualSessionState(
+            profileSerial = prefs[manualProfileKey], quiet = prefs[manualQuietKey],
+            active = prefs[manualActiveKey] ?: false,
+            expectedQuiet = prefs[manualExpectedKey],
+            expectedUntil = prefs[manualExpectedUntilKey] ?: 0L
+        )
+    )
+
+    val manualSessionFlow: Flow<ManualSessionSettings> = context.dataStore.data.map(::manualSettings)
+
+    suspend fun automationSnapshot(): AutomationSnapshot {
+        val prefs = context.dataStore.data.first()
+        return AutomationSnapshot(decodeSchedule(prefs[scheduleKey]), manualSettings(prefs))
+    }
+
+    suspend fun setManualSessionsEnabled(enabled: Boolean) {
+        context.dataStore.edit {
+            it[manualEnabledKey] = enabled
+            writeManualState(it, ManualSessionState())
+        }
+    }
+
+    suspend fun saveManualState(state: ManualSessionState): ManualSessionSettings {
+        val saved = context.dataStore.edit {
+            writeManualState(it, if (it[manualEnabledKey] == true && decodeSchedule(it[scheduleKey]).enabled)
+                state else ManualSessionState())
+        }
+        return manualSettings(saved)
+    }
+
+    private fun writeManualState(prefs: androidx.datastore.preferences.core.MutablePreferences, state: ManualSessionState) {
+        state.profileSerial?.let { prefs[manualProfileKey] = it } ?: prefs.remove(manualProfileKey)
+        state.quiet?.let { prefs[manualQuietKey] = it } ?: prefs.remove(manualQuietKey)
+        prefs[manualActiveKey] = state.active
+        state.expectedQuiet?.let { prefs[manualExpectedKey] = it } ?: prefs.remove(manualExpectedKey)
+        prefs[manualExpectedUntilKey] = state.expectedUntil
     }
 
     // ---- pending-resume state (deferred resume while device locked) ----
@@ -67,6 +116,8 @@ class ScheduleStore(private val context: Context) {
     suspend fun setUnlockReminderRequested(requested: Boolean) {
         context.dataStore.edit { it[unlockReminderKey] = requested }
     }
+
+    data class AutomationSnapshot(val schedule: Schedule, val manual: ManualSessionSettings)
 
     val pendingResumeFlow: Flow<Boolean> = context.dataStore.data.map { it[pendingResumeKey] ?: false }
 

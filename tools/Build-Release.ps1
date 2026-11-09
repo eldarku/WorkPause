@@ -1,3 +1,5 @@
+param([switch]$Preview)
+
 $ErrorActionPreference = 'Stop'
 if (-not $env:JAVA_HOME) {
     throw 'Set JAVA_HOME to JDK 17 or 21 before building.'
@@ -22,7 +24,8 @@ try {
     $env:WORKPAUSE_KEY_PASSWORD = $env:WORKPAUSE_STORE_PASSWORD
     Push-Location -LiteralPath (Split-Path -Parent $PSScriptRoot)
     try {
-        & .\gradlew.bat :app:assembleRelease --no-daemon --console=plain
+        $task = if ($Preview) { ':app:assemblePreview' } else { ':app:assembleRelease' }
+        & .\gradlew.bat $task --no-daemon --console=plain
         if ($LASTEXITCODE -ne 0) {
             throw 'Signed release build failed.'
         }
@@ -36,4 +39,4 @@ try {
     [Runtime.InteropServices.Marshal]::ZeroFreeBSTR($pointer)
     $securePassword.Dispose()
 }
-Write-Host 'Signed WorkPause release APK built successfully.'
+Write-Host $(if ($Preview) { 'Signed WorkPause Preview APK built successfully.' } else { 'Signed WorkPause release APK built successfully.' })

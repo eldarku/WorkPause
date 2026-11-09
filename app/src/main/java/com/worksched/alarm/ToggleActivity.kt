@@ -9,6 +9,7 @@ import android.util.Log
 import android.view.WindowManager
 import androidx.activity.ComponentActivity
 import com.worksched.profile.WorkProfileToggler
+import com.worksched.profile.ManualSessions
 import com.worksched.data.ScheduleStore
 import androidx.lifecycle.lifecycleScope
 import kotlinx.coroutines.flow.first
@@ -52,7 +53,8 @@ class ToggleActivity : ComponentActivity() {
         Handler(Looper.getMainLooper()).postDelayed({
             lifecycleScope.launch {
                 val schedule = ScheduleStore(this@ToggleActivity).scheduleFlow.first()
-                if (!schedule.enabled || schedule.isActiveAt() != enable) {
+                if (!schedule.enabled || schedule.isActiveAt() != enable ||
+                    !ManualSessions.allows(this@ToggleActivity, enable)) {
                     Log.i(TAG, "Delayed toggle cancelled: WorkPause is off or schedule changed")
                     finish()
                     return@launch

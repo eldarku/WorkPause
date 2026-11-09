@@ -16,8 +16,8 @@ import com.worksched.service.WorkProfileA11yService
  *   2. WorkProfileA11yService — visible Quick Settings gesture. Fallback when the
  *      permission has not been granted yet (so the app works on a fresh install).
  *
- * Return value (silent path): true = profile reached the desired state; false = a
- * resume was DEFERRED because device or work-profile credentials may be needed.
+ * The result distinguishes a successful request, a credential-deferred resume,
+ * and a request blocked by current scheduling or a manual session.
  * A deferred resume is NOT a failure and must NOT fall back to the
  * A11y gesture — the caller persists a pending-resume flag and retries on unlock.
  */
@@ -29,10 +29,16 @@ object WorkProfileToggler {
     fun isSilent(context: Context): Boolean = QuietModeBackend.isAvailable(context)
 
     /**
-     * @return for the silent backend: the real result (false on resume = deferred/locked).
-     *         for the A11y fallback: true if the gesture was dispatched.
+     * The accessibility backend reports success when its gesture was dispatched;
+     * delayed gestures recheck authorization before acting.
      */
-    suspend fun toggle(context: Context, enable: Boolean): Boolean {
+    suspend fun toggle(context: Context, enable: Boolean): ToggleResult =
+        ManualSessions.performToggle(context, enable) { toggleAuthorized(context, enable) }
+
+    suspend fun resumeFromUserAction(context: Context): ToggleResult =
+        ManualSessions.performToggle(context, true) { QuietModeBackend.resumeFromUserAction(context) }
+
+    private suspend fun toggleAuthorized(context: Context, enable: Boolean): Boolean {
         if (enable) WorkProfileUnlockNotifier.recordResumeRequest(context)
         else WorkProfileUnlockNotifier.cancel(context)
         if (QuietModeBackend.isAvailable(context)) {

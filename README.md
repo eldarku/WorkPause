@@ -106,6 +106,63 @@ WorkPause is OFF does not turn it on or change the work profile.
 
 <img src="docs/screenshots/workpause-main.png" width="320" alt="WorkPause compact header and per-day scheduler in the Android emulator">
 
+## Manual work sessions (unreleased)
+
+The optional **Settings > Respect manual work sessions** feature lets you do
+occasional after-hours work without opening WorkPause:
+
+1. Enable the option once. It is **off by default**; existing behavior is unchanged.
+2. Leave WorkPause ON. Outside scheduled work hours, turn the work profile ON
+   using Android's normal Work apps / Work profile control.
+3. WorkPause shows **Schedule paused for a manual work session** and stops
+   automatic changes, including pending resume retries and location arrivals.
+4. Turn the profile OFF through Android when finished. WorkPause automatically
+   resumes the current saved schedule.
+
+The saved master switch stays ON during the temporary pause. A session continues
+across schedule boundaries until you pause the profile; if work hours are active
+when the session ends, normal scheduling can resume the profile. Manual OFF during
+work hours does not create a separate override. WorkPause's own changes and profile
+unlocks do not start manual sessions.
+
+Monitoring starts automatically while the option and WorkPause are ON. It uses
+Android profile-change events, not continuous polling or a wake lock, with a quiet
+ongoing **Manual work sessions** notification. It uses some background memory and
+may use additional battery; no battery-percentage claim has been measured.
+Turning WorkPause OFF stops monitoring without changing the profile and never
+automatically turns WorkPause back on. Turning the option OFF reapplies the current
+schedule. Android force-stop, explicit service stopping, and employer/OEM policy
+can interrupt monitoring; reopening WorkPause restores observation and reconciles
+persisted state. Events missed while stopped cannot always be reconstructed.
+
+### Independently signed preview APK
+
+The manual-session preview is **not** the author's signed release. Its application
+ID is `io.github.marinfrankovic.workpause.preview`, its launcher label is
+**WorkPause Preview**, and it installs alongside the official app without
+uninstalling it or changing its data. Disable scheduling in the original app
+while testing so two schedulers do not compete.
+
+The preview needs its own saved schedule, exact-alarm/battery/notification setup,
+and one-time silent-control grant:
+
+```powershell
+adb shell pm grant io.github.marinfrankovic.workpause.preview android.permission.MODIFY_QUIET_MODE
+```
+
+Some older Android versions, including the stock Android 10 test image, do not
+allow this ADB grant. Use the existing visible fallback on those devices; the
+preview does not bypass Android's permission rules.
+
+Enable **Respect manual work sessions** in the preview's Settings. The feature
+does not bypass Android's work PIN or employer policy. The author can ship a normal
+in-place update with the official signing key after reviewing the PR.
+
+Build the optimized, non-debuggable preview with the existing private signing
+setup and `tools\Build-Release.ps1 -Preview`. Its output is
+`app\build\outputs\apk\preview\app-preview.apk`. Never use an independent preview
+key to distribute an APK claiming to update the author's official release.
+
 ## App identity
 
 - Application ID: `io.github.marinfrankovic.workpause`

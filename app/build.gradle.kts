@@ -16,6 +16,7 @@ android {
         targetSdk = 35
         versionCode = 5
         versionName = "1.0.3"
+        manifestPlaceholders["appLabel"] = "@string/app_name"
     }
 
     buildFeatures {
@@ -51,6 +52,13 @@ android {
         }
         debug {
             isMinifyEnabled = false
+        }
+        create("preview") {
+            initWith(getByName("release"))
+            applicationIdSuffix = ".preview"
+            versionNameSuffix = "-manual-sessions-preview"
+            manifestPlaceholders["appLabel"] = "WorkPause Preview"
+            matchingFallbacks += "release"
         }
     }
 

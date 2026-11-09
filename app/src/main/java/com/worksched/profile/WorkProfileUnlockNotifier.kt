@@ -44,11 +44,12 @@ object WorkProfileUnlockNotifier {
     suspend fun refresh(context: Context): UnlockReminderState = mutex.withLock {
         val store = ScheduleStore(context)
         val schedule = store.scheduleFlow.first()
+        val manual = store.automationSnapshot().manual
         val detector = WorkProfileDetector(context)
         val locationWindowValid = !schedule.locationEnabled ||
             (schedule.hasValidLocation() && LocationGate.inResumeWindowNow(schedule))
         val state = UnlockReminderPolicy.evaluate(
-            enabled = schedule.enabled,
+            enabled = schedule.enabled && !(manual.enabled && manual.state.active),
             active = schedule.isActiveAt() && locationWindowValid,
             profilePresent = detector.isWorkProfilePresent(),
             requested = store.unlockReminderRequested(),

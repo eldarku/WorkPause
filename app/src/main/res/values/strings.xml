@@ -25,4 +25,12 @@
     <string name="unlock_wait_for_android">Android has not finished resuming the profile. Complete any Android credential screen, then return and try again if needed.</string>
     <string name="unlock_launch_failed">Android could not open this work app. It may have been removed or restricted. Use the work-app icon in your phone launcher.</string>
     <string name="unlock_location_not_verified">Your saved location rule could not be verified. WorkPause will not resume the profile from this reminder.</string>
+    <string name="manual_setting_title">Respect manual work sessions</string>
+    <string name="manual_setting_description">When you turn work apps on through Android outside work hours, pause automation until you turn them off again. Uses a quiet ongoing notification; no continuous polling. Turning this option off reapplies your current schedule.</string>
+    <string name="manual_channel_name">Manual work sessions</string>
+    <string name="manual_channel_description">Event-driven monitoring while WorkPause is on. No sound or pop-up.</string>
+    <string name="manual_monitor_watching">Watching for manual work-profile changes</string>
+    <string name="manual_monitor_paused">Schedule paused until you turn work apps off</string>
+    <string name="manual_paused_status">ON - schedule paused for a manual work session.</string>
+    <string name="manual_monitor_stopped">Monitoring is not running. Open Settings to retry.</string>
 </resources>

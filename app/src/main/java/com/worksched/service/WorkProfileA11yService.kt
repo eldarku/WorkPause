@@ -11,6 +11,13 @@ import android.os.Looper
 import android.util.Log
 import android.view.accessibility.AccessibilityEvent
 import android.view.accessibility.AccessibilityNodeInfo
+import com.worksched.profile.ManualSessions
+import java.io.IOException
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.cancel
+import kotlinx.coroutines.launch
 
 /**
  * FALLBACK backend. Used only when the silent MODIFY_QUIET_MODE permission has
@@ -21,6 +28,7 @@ import android.view.accessibility.AccessibilityNodeInfo
 class WorkProfileA11yService : AccessibilityService() {
 
     private val main = Handler(Looper.getMainLooper())
+    private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
 
     override fun onServiceConnected() {
         super.onServiceConnected()
@@ -34,6 +42,8 @@ class WorkProfileA11yService : AccessibilityService() {
     }
 
     override fun onDestroy() {
+        main.removeCallbacksAndMessages(null)
+        scope.cancel()
         if (instance === this) instance = null
         super.onDestroy()
     }
@@ -54,6 +64,23 @@ class WorkProfileA11yService : AccessibilityService() {
     }
 
     private fun attemptTileClick(desired: Boolean, attempt: Int, reExpanded: Boolean) {
+        scope.launch {
+            try {
+                if (!ManualSessions.allows(this@WorkProfileA11yService, desired)) {
+                    cancelPendingToggle()
+                    performGlobalAction(GLOBAL_ACTION_BACK)
+                    return@launch
+                }
+                attemptAuthorizedTileClick(desired, attempt, reExpanded)
+            } catch (e: IOException) {
+                Log.e(TAG, "Cannot authorize delayed work-profile action", e)
+                cancelPendingToggle()
+                performGlobalAction(GLOBAL_ACTION_BACK)
+            }
+        }
+    }
+
+    private fun attemptAuthorizedTileClick(desired: Boolean, attempt: Int, reExpanded: Boolean) {
         val root = rootInActiveWindow
         val tile = root?.takeIf { it.packageName?.toString() == SYSTEM_UI_PACKAGE }?.let { findWorkTile(it) }
         if (tile == null) {

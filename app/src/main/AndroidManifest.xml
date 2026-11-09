@@ -8,6 +8,8 @@
     <uses-permission android:name="android.permission.USE_EXACT_ALARM"/>
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS"/>
     <uses-permission android:name="android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS"/>
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE"/>
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_SPECIAL_USE"/>
 
     <!-- Optional location gate on the scheduled resume (feature is off by default).
          Background access is required because the gate runs from a background alarm /
@@ -36,7 +38,7 @@
         android:fullBackupContent="@xml/backup_rules"
         android:icon="@mipmap/ic_launcher"
         android:roundIcon="@mipmap/ic_launcher_round"
-        android:label="@string/app_name"
+        android:label="${appLabel}"
         android:supportsRtl="true"
         android:theme="@style/Theme.WorkSched"
         tools:targetApi="34">
@@ -50,7 +52,7 @@
         <activity
             android:name=".MainActivity"
             android:exported="true"
-            android:label="@string/app_name"
+            android:label="${appLabel}"
             android:theme="@style/Theme.WorkSched">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
@@ -115,6 +117,15 @@
                 <action android:name="android.intent.action.MANAGED_PROFILE_UNAVAILABLE" />
             </intent-filter>
         </receiver>
+
+        <service
+            android:name=".service.ManualSessionService"
+            android:exported="false"
+            android:foregroundServiceType="specialUse">
+            <property
+                android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"
+                android:value="Observe work-profile quiet-mode changes during user-enabled scheduling so manual after-hours work sessions suspend and restore automation without polling." />
+        </service>
 
         <service
             android:name=".service.WorkProfileA11yService"
