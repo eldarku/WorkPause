@@ -71,7 +71,10 @@ class GeofenceReceiver : BroadcastReceiver() {
                 } else {
                     // Locked on arrival → defer to next unlock via the existing retry backbone.
                     val deadline = minOf(System.currentTimeMillis() + DEFER_WINDOW_MS, LocationGate.resumeWindowEndMillis(schedule))
-                    store.setPendingResume(true, deadline)
+                    if (!store.setPendingResume(true, deadline)) {
+                        ResumeRetryScheduler.cancel(appCtx)
+                        return@launch
+                    }
                     ResumeRetryScheduler.schedule(appCtx, attempt = 0)
                     notify(appCtx, "Work profile needs unlocking. Use the unlock reminder after unlocking your phone.")
                     Log.i(TAG, "arrival resume deferred (device locked)")

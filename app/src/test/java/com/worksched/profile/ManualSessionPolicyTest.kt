@@ -17,7 +17,7 @@ class ManualSessionPolicyTest {
         quiet: Boolean? = false,
         scheduled: Boolean = false,
         at: Long = now
-    ) = ManualSessionPolicy.observe(state, enabled, profile, quiet, scheduled, at)
+    ) = ManualSessionPolicy.observe(state, enabled, profile, quiet, scheduled, at).state
 
     @Test fun `external resume outside work hours starts a session`() {
         assertTrue(observe().active)
@@ -83,7 +83,7 @@ class ManualSessionPolicyTest {
         assertFalse(observe(state = observe(), profile = 11L).active)
     }
 
-    @Test fun `disabled master clears sessions and rejects actions`() {
+    @Test fun `disabled synchronization clears state and disabled master rejects actions`() {
         assertEquals(ManualSessionState(), observe(state = observe(), enabled = false))
         assertFalse(ManualSessionPolicy.allows(false, ManualSessionSettings(), true, true))
     }
@@ -126,5 +126,67 @@ class ManualSessionPolicyTest {
     @Test fun `duplicate paused observation preserves a pending resume`() {
         val requested = ManualSessionPolicy.requesting(paused, true, now)
         assertEquals(requested, observe(state = requested, quiet = true, at = now + 1))
+    }
+
+    @Test fun `external ON outside hours enables scheduling and preserves manual ON`() {
+        val decision = ManualSessionPolicy.observe(paused, true, 10L, false, false, now)
+        assertEquals(true, decision.schedulingEnabled)
+        assertTrue(decision.state.active)
+    }
+
+    @Test fun `external ON during work hours enables scheduling without an override`() {
+        val decision = ManualSessionPolicy.observe(paused, true, 10L, false, true, now)
+        assertEquals(true, decision.schedulingEnabled)
+        assertFalse(decision.state.active)
+    }
+
+    @Test fun `external OFF during work hours disables scheduling`() {
+        val decision = ManualSessionPolicy.observe(paused.copy(quiet = false), true, 10L, true, true, now)
+        assertEquals(false, decision.schedulingEnabled)
+        assertFalse(decision.state.active)
+    }
+
+    @Test fun `ending after hours session inside changed work hours disables scheduling`() {
+        val active = observe()
+        val decision = ManualSessionPolicy.observe(active, true, 10L, true, true, now)
+        assertEquals(false, decision.schedulingEnabled)
+        assertFalse(decision.state.active)
+    }
+
+    @Test fun `manual OFF followed by ON can reenable scheduling`() {
+        val off = ManualSessionPolicy.observe(paused.copy(quiet = false), true, 10L, true, true, now)
+        val on = ManualSessionPolicy.observe(off.state, true, 10L, false, true, now + 1)
+        assertEquals(false, off.schedulingEnabled)
+        assertEquals(true, on.schedulingEnabled)
+    }
+
+    @Test fun `scheduled OFF does not disable scheduling`() {
+        val request = ManualSessionPolicy.requesting(paused.copy(quiet = false), false, now)
+        val decision = ManualSessionPolicy.observe(request, true, 10L, true, false, now + 1)
+        assertNull(decision.schedulingEnabled)
+    }
+
+    @Test fun `scheduled ON does not mirror a manual switch`() {
+        val request = ManualSessionPolicy.requesting(paused, true, now)
+        assertNull(ManualSessionPolicy.observe(request, true, 10L, false, true, now + 1).schedulingEnabled)
+    }
+
+    @Test fun `external OFF clears conflicting pending resume correlation`() {
+        val request = paused.copy(quiet = false, expectedQuiet = false, expectedUntil = now + 1000)
+        val decision = ManualSessionPolicy.observe(request, true, 10L, true, true, now)
+        assertEquals(false, decision.schedulingEnabled)
+        assertNull(decision.state.expectedQuiet)
+    }
+
+    @Test fun `initial baseline duplicate unlock and unknown events do not mirror`() {
+        assertNull(ManualSessionPolicy.observe(ManualSessionState(), true, 10L, false, true, now).schedulingEnabled)
+        assertNull(ManualSessionPolicy.observe(paused, true, 10L, true, true, now).schedulingEnabled)
+        assertNull(ManualSessionPolicy.observe(paused, true, 10L, null, true, now).schedulingEnabled)
+    }
+
+    @Test fun `disabled synchronization and replaced or removed profiles do not mirror`() {
+        assertNull(ManualSessionPolicy.observe(paused, false, 10L, false, false, now).schedulingEnabled)
+        assertNull(ManualSessionPolicy.observe(paused, true, 11L, false, false, now).schedulingEnabled)
+        assertNull(ManualSessionPolicy.observe(paused, true, null, null, false, now).schedulingEnabled)
     }
 }

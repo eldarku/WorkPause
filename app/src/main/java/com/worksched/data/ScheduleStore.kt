@@ -17,6 +17,8 @@ import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 import com.worksched.profile.ManualSessionSettings
 import com.worksched.profile.ManualSessionState
+import com.worksched.profile.ManualSessionPolicy
+import com.worksched.profile.ManualSessionObservation
 
 private val Context.dataStore: DataStore<Preferences> by preferencesDataStore(name = "worksched")
 
@@ -63,7 +65,10 @@ class ScheduleStore(private val context: Context) {
             prefs[pendingResumeKey] = false
             prefs[pendingResumeDeadlineKey] = 0L
             if (!enabled) prefs[unlockReminderKey] = false
-            if (!enabled) writeManualState(prefs, ManualSessionState())
+            val manual = manualSettings(prefs)
+            writeManualState(prefs, if (manual.enabled)
+                ManualSessionPolicy.requestFailed(manual.state).copy(active = false)
+                else ManualSessionState())
         }
         return decodeSchedule(saved[scheduleKey])
     }
@@ -94,10 +99,26 @@ class ScheduleStore(private val context: Context) {
 
     suspend fun saveManualState(state: ManualSessionState): ManualSessionSettings {
         val saved = context.dataStore.edit {
-            writeManualState(it, if (it[manualEnabledKey] == true && decodeSchedule(it[scheduleKey]).enabled)
-                state else ManualSessionState())
+            writeManualState(it, if (it[manualEnabledKey] == true) state else ManualSessionState())
         }
         return manualSettings(saved)
+    }
+
+    suspend fun saveManualObservation(observation: ManualSessionObservation): AutomationSnapshot {
+        val saved = context.dataStore.edit { prefs ->
+            if (prefs[manualEnabledKey] == true) {
+                writeManualState(prefs, observation.state)
+                observation.schedulingEnabled?.let { enabled ->
+                    prefs[scheduleKey] = json.encodeToString(decodeSchedule(prefs[scheduleKey]).copy(enabled = enabled))
+                    prefs[pendingResumeKey] = false
+                    prefs[pendingResumeDeadlineKey] = 0L
+                    if (!enabled) prefs[unlockReminderKey] = false
+                }
+            } else {
+                writeManualState(prefs, ManualSessionState())
+            }
+        }
+        return AutomationSnapshot(decodeSchedule(saved[scheduleKey]), manualSettings(saved))
     }
 
     private fun writeManualState(prefs: androidx.datastore.preferences.core.MutablePreferences, state: ManualSessionState) {
@@ -127,11 +148,15 @@ class ScheduleStore(private val context: Context) {
     suspend fun pendingResumeDeadline(): Long =
         context.dataStore.data.first()[pendingResumeDeadlineKey] ?: 0L
 
-    suspend fun setPendingResume(active: Boolean, deadlineMs: Long) {
-        context.dataStore.edit {
-            it[pendingResumeKey] = active
-            it[pendingResumeDeadlineKey] = if (active) deadlineMs else 0L
+    suspend fun setPendingResume(active: Boolean, deadlineMs: Long): Boolean {
+        val saved = context.dataStore.edit {
+            val manual = manualSettings(it)
+            val authorized = active && decodeSchedule(it[scheduleKey]).isActiveAt() &&
+                !(manual.enabled && manual.state.active)
+            it[pendingResumeKey] = authorized
+            it[pendingResumeDeadlineKey] = if (authorized) deadlineMs else 0L
         }
+        return saved[pendingResumeKey] == true
     }
 
     // ---- geofence-armed state (an arrival-resume proximity alert is outstanding) ----

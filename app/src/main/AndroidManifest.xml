@@ -124,7 +124,7 @@
             android:foregroundServiceType="specialUse">
             <property
                 android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"
-                android:value="Observe work-profile quiet-mode changes during user-enabled scheduling so manual after-hours work sessions suspend and restore automation without polling." />
+                android:value="Observe manual Android work-profile switches to synchronize scheduling ON/OFF, including while scheduling is OFF, and preserve manual after-hours activation without polling." />
         </service>
 
         <service

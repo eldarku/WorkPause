@@ -118,7 +118,10 @@ class ToggleReceiver : BroadcastReceiver() {
             ResumeRetryScheduler.cancel(context)
             postNotification(context, true)
         } else {
-            store.setPendingResume(true, deadline)
+            if (!store.setPendingResume(true, deadline)) {
+                ResumeRetryScheduler.cancel(context)
+                return
+            }
             ResumeRetryScheduler.schedule(context, 0)
             Log.i(TAG, "Resume deferred; retry chain started")
             postNotification(context, true, deferred = true)

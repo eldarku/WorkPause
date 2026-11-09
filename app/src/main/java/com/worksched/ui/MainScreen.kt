@@ -137,6 +137,7 @@ import com.worksched.profile.WorkProfileUnlockNotifier
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.text.SimpleDateFormat
@@ -202,6 +203,19 @@ fun MainScreen() {
         locationBgOk = LocationGate.hasBackgroundLocation(ctx)
     }
 
+    LaunchedEffect(manualSession) {
+        if (manualSession.enabled) {
+            refresh()
+            pendingResume = store.pendingResume()
+            unlockReminder = store.unlockReminderRequested()
+        }
+    }
+    LaunchedEffect(store) {
+        store.scheduleFlow.collect { saved ->
+            workPauseEnabled = saved.enabled
+            if (loaded) schedule = schedule.copy(enabled = saved.enabled)
+        }
+    }
     LaunchedEffect(Unit) {
         val saved = store.scheduleFlow.first()
         workPauseEnabled = saved.enabled
@@ -246,10 +260,10 @@ fun MainScreen() {
         ResumeRetryScheduler.cancel(ctx)
         GeofenceManager.disarm(ctx)
         store.setGeofenceArmed(false)
-        ManualSessions.refresh(ctx)
+        val current = ManualSessions.refresh(ctx).schedule
         ManualSessionService.update(ctx)
-        AlarmScheduler.scheduleAll(ctx, saved)
-        if (saved.enabled) AlarmScheduler.requestReconcile(ctx)
+        AlarmScheduler.scheduleAll(ctx, current)
+        if (current.enabled) AlarmScheduler.requestReconcile(ctx)
     }
 
     val fgLocationPerms = arrayOf(Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.ACCESS_COARSE_LOCATION)
@@ -326,7 +340,7 @@ fun MainScreen() {
                         saving = true
                         scope.launch {
                             try {
-                                val saved = store.setEnabled(enabled)
+                                val saved = ManualSessions.setEnabled(ctx, enabled)
                                 workPauseEnabled = saved.enabled
                                 schedule = schedule.copy(enabled = saved.enabled)
                                 applySchedule(saved)
@@ -346,6 +360,7 @@ fun MainScreen() {
             )
             if (ready) Text(
                 when {
+                    !workPauseEnabled && manualSession.enabled -> stringResource(R.string.manual_off_status)
                     !workPauseEnabled -> "OFF - work apps stay as set on your phone."
                     manualSession.enabled && manualSession.state.active -> stringResource(R.string.manual_paused_status)
                     else -> "ON - following your saved schedule."
@@ -353,7 +368,7 @@ fun MainScreen() {
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
-            if (ready && workPauseEnabled && manualSession.enabled && !monitor.running) Text(
+            if (ready && manualSession.enabled && !monitor.running) Text(
                 monitor.error ?: stringResource(R.string.manual_monitor_stopped),
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.error
@@ -391,8 +406,8 @@ fun MainScreen() {
                 Text(
                     when {
                         !present -> "No work profile found"
-                        unlockReminder -> "Work profile may need your work PIN"
-                        pendingResume -> "Waiting for unlock"
+                        unlockReminder && workPauseEnabled -> "Work profile may need your work PIN"
+                        pendingResume && workPauseEnabled -> "Waiting for unlock"
                         quiet == true -> "Work apps are paused"
                         quiet == false -> "Work apps are on"
                         else -> "Work profile status unavailable"
@@ -402,7 +417,7 @@ fun MainScreen() {
                     modifier = Modifier.weight(1f)
                 )
             }
-            if (unlockReminder) TextButton(onClick = {
+            if (unlockReminder && workPauseEnabled) TextButton(onClick = {
                 ctx.startActivity(Intent(ctx, com.worksched.profile.UnlockWorkProfileActivity::class.java))
             }) { Text("Open work apps") }
             if (needsSetup) TextButton(onClick = { showSetup = true }) { Text("Finish setup in Settings") }
@@ -421,9 +436,9 @@ fun MainScreen() {
                 notificationsOk = notificationsOk,
                 manualEnabled = manualSession.enabled,
                 manualStatus = when {
-                    !workPauseEnabled -> "Monitoring starts when WorkPause is ON."
                     monitor.error != null -> requireNotNull(monitor.error)
                     !monitor.running -> ctx.getString(R.string.manual_monitor_stopped)
+                    !workPauseEnabled -> ctx.getString(R.string.manual_monitor_off)
                     manualSession.state.active -> ctx.getString(R.string.manual_monitor_paused)
                     else -> ctx.getString(R.string.manual_monitor_watching)
                 },
@@ -1034,7 +1049,7 @@ private fun HelpDialog(onDismiss: () -> Unit) {
             Column(modifier = Modifier.verticalScroll(rememberScrollState())) {
                 HelpPara("Daily behavior", "Select a weekday and choose Schedule, All day ON, or All day OFF. Schedule keeps work apps ON from the From time until the To time; an earlier To time means the next day. All day OFF takes priority at midnight over previous overnight hours.")
                 HelpPara("WorkPause ON or OFF", "ON follows your saved weekly schedule and applies the current scheduled state. OFF stops WorkPause's automatic changes and leaves work apps as set on your phone. The switch applies immediately, without saving. It does not change your phone's own settings or employer policies.")
-                HelpPara("Manual work sessions (optional)", "Enable Respect manual work sessions once in Settings. Turning work apps ON through Android outside scheduled work hours pauses automatic changes until you turn them OFF again. A quiet ongoing notification keeps event monitoring active without polling. A session can span a scheduled boundary; when it ends, the current schedule applies again. WorkPause OFF stops monitoring and is never automatically turned back on. Force-stopping WorkPause stops observation until Android allows it to run again.")
+                HelpPara("Android profile switches (optional)", "Enable Sync Android Work Profile switches in Settings. A manual Android ON enables scheduling; a manual Android OFF disables scheduling and cancels pending automatic actions. Manual ON outside saved hours keeps work apps ON until you switch them OFF. WorkPause's own scheduled changes do not switch scheduling off. Monitoring continues while scheduling is OFF so the next manual Android ON can enable it again. Turn the option OFF to stop monitoring. Force-stopping WorkPause interrupts observation until it can run again.")
                 HelpPara("Copy and save", "Copy to other days replaces the selected days' behavior and times. Save schedule applies daily edits only. The WorkPause switch uses the saved schedule, not unsaved edits. Saving while WorkPause is OFF does not turn it on.")
                 HelpPara("Silent mode", "After a one-time ADB grant (MODIFY_QUIET_MODE), the app pauses/resumes your work profile via a direct system call — instant, no screen, no Quick Settings panel. No root.")
                 HelpPara("Visible fallback", "Without the grant, it taps the Quick Settings ‘Work apps’ tile via an Accessibility service, which briefly shows the panel.")

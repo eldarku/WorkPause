@@ -106,12 +106,12 @@ class ManualSessionService : Service() {
         val store = ScheduleStore(this)
         scope.launch {
             combine(store.scheduleFlow, store.manualSessionFlow) { schedule, manual ->
-                (schedule.enabled && manual.enabled) to manual.state.active
+                Triple(manual.enabled, schedule.enabled, manual.state.active)
             }.distinctUntilChanged().catch { e ->
                 if (e is IOException) fail("Could not read monitoring settings", e) else throw e
-            }.collect { (enabled, active) ->
+            }.collect { (enabled, scheduling, active) ->
                 if (!enabled) stopSelf()
-                else manager.notify(NOTIFICATION_ID, notification(active))
+                else manager.notify(NOTIFICATION_ID, notification(active, scheduling))
             }
         }
     }
@@ -127,13 +127,17 @@ class ManualSessionService : Service() {
         super.onDestroy()
     }
 
-    private fun notification(active: Boolean): Notification {
+    private fun notification(active: Boolean, scheduling: Boolean = true): Notification {
         val open = PendingIntent.getActivity(this, NOTIFICATION_ID, Intent(this, MainActivity::class.java),
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
         return NotificationCompat.Builder(this, CHANNEL_ID)
             .setSmallIcon(android.R.drawable.ic_menu_my_calendar)
             .setContentTitle(getString(R.string.manual_channel_name))
-            .setContentText(getString(if (active) R.string.manual_monitor_paused else R.string.manual_monitor_watching))
+            .setContentText(getString(when {
+                !scheduling -> R.string.manual_monitor_off
+                active -> R.string.manual_monitor_paused
+                else -> R.string.manual_monitor_watching
+            }))
             .setContentIntent(open)
             .setOngoing(true)
             .setSilent(true)
@@ -158,7 +162,7 @@ class ManualSessionService : Service() {
 
         suspend fun update(context: Context) {
             val snapshot = ScheduleStore(context).automationSnapshot()
-            if (!snapshot.schedule.enabled || !snapshot.manual.enabled) {
+            if (!snapshot.manual.enabled) {
                 context.stopService(Intent(context, ManualSessionService::class.java))
                 mutableStatus.value = ManualMonitorStatus()
                 return

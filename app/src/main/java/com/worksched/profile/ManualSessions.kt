@@ -6,6 +6,7 @@ import com.worksched.alarm.AlarmScheduler
 import com.worksched.alarm.ResumeRetryScheduler
 import com.worksched.data.ScheduleStore.AutomationSnapshot
 import com.worksched.data.ScheduleStore
+import com.worksched.data.Schedule
 import com.worksched.location.GeofenceManager
 import com.worksched.service.WorkProfileA11yService
 import kotlinx.coroutines.sync.Mutex
@@ -20,6 +21,11 @@ object ManualSessions {
     private const val TAG = "WorkPauseManual"
 
     suspend fun refresh(context: Context): AutomationSnapshot = mutex.withLock { observe(context) }
+
+    suspend fun setEnabled(context: Context, enabled: Boolean): Schedule = mutex.withLock {
+        observe(context)
+        ScheduleStore(context).setEnabled(enabled)
+    }
 
     suspend fun allows(context: Context, enable: Boolean): Boolean = mutex.withLock {
         val snapshot = observe(context)
@@ -58,30 +64,34 @@ object ManualSessions {
         val profile = detector.workProfileHandle()
         val serial = detector.workProfileSerial()
         val quiet = if (profile != null) detector.isWorkProfileQuiet() else null
-        if (snapshot.manual.enabled && snapshot.schedule.enabled && profile != null &&
+        if (snapshot.manual.enabled && profile != null &&
             (serial == null || quiet == null)) {
             Log.w(TAG, "Cannot verify profile state; keeping persisted session and withholding automation")
             return snapshot.copy(manual = snapshot.manual.copy(state = snapshot.manual.state.copy(quiet = null)))
         }
         val next = ManualSessionPolicy.observe(
-            snapshot.manual.state, snapshot.manual.enabled && snapshot.schedule.enabled,
+            snapshot.manual.state, snapshot.manual.enabled,
             serial, quiet,
-            snapshot.schedule.isActiveAt(), System.currentTimeMillis()
+            snapshot.schedule.copy(enabled = true).isActiveAt(), System.currentTimeMillis()
         )
-        if (next == snapshot.manual.state) return snapshot
-        val saved = store.saveManualState(next)
-        if (saved.state.active && !snapshot.manual.state.active) {
-            Log.i(TAG, "Manual work session started; scheduled changes suspended")
+        if (next.state == snapshot.manual.state && next.schedulingEnabled == null) return snapshot
+        val saved = store.saveManualObservation(next)
+        if ((saved.manual.state.active && !snapshot.manual.state.active) ||
+            (next.schedulingEnabled != null && saved.manual.enabled)) {
+            Log.i(TAG, "External profile control takes priority; cancelling queued automation")
             store.setPendingResume(false, 0L)
             ResumeRetryScheduler.cancel(context)
             GeofenceManager.disarm(context)
             store.setGeofenceArmed(false)
             WorkProfileA11yService.instance?.cancelPendingToggle()
             WorkProfileUnlockNotifier.cancel(context)
-        } else if (!saved.state.active && snapshot.manual.state.active) {
-            Log.i(TAG, "Manual work session ended; restoring the current schedule")
+        }
+        if (next.schedulingEnabled != null && saved.manual.enabled) {
+            Log.i(TAG, "External profile switch synchronized scheduling: enabled=${saved.schedule.enabled}")
+            AlarmScheduler.scheduleAll(context, saved.schedule)
+        } else if (!saved.manual.state.active && snapshot.manual.state.active && saved.schedule.enabled) {
             AlarmScheduler.requestReconcile(context)
         }
-        return snapshot.copy(manual = saved)
+        return saved
     }
 }

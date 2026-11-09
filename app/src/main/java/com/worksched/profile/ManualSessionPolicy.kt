@@ -13,6 +13,11 @@ data class ManualSessionSettings(
     val state: ManualSessionState = ManualSessionState()
 )
 
+data class ManualSessionObservation(
+    val state: ManualSessionState,
+    val schedulingEnabled: Boolean? = null
+)
+
 object ManualSessionPolicy {
     const val OWN_REQUEST_WINDOW_MS = 60_000L
 
@@ -23,22 +28,23 @@ object ManualSessionPolicy {
         quiet: Boolean?,
         scheduledActive: Boolean,
         now: Long
-    ): ManualSessionState {
-        if (!enabled) return ManualSessionState()
-        if (profileSerial == null) return ManualSessionState()
-        if (profileSerial != previous.profileSerial) return ManualSessionState(profileSerial, quiet)
-        if (quiet == null) return previous
+    ): ManualSessionObservation {
+        if (!enabled || profileSerial == null) return ManualSessionObservation(ManualSessionState())
+        if (profileSerial != previous.profileSerial) return ManualSessionObservation(ManualSessionState(profileSerial, quiet))
+        if (quiet == null) return ManualSessionObservation(previous)
         val requestPending = previous.expectedUntil > now &&
             previous.expectedUntil - now <= OWN_REQUEST_WINDOW_MS
         val ownChange = previous.expectedQuiet == quiet && requestPending
-        val manualResume = previous.quiet == true && !quiet && !scheduledActive && !ownChange
-        val keepRequest = !ownChange && requestPending
-        return previous.copy(
+        val externalChange = previous.quiet != null && previous.quiet != quiet && !ownChange
+        val manualResume = externalChange && !quiet && !scheduledActive
+        val keepRequest = !ownChange && !externalChange && requestPending
+        val state = previous.copy(
             quiet = quiet,
             active = !quiet && (previous.active || manualResume),
             expectedQuiet = if (keepRequest) previous.expectedQuiet else null,
             expectedUntil = if (keepRequest) previous.expectedUntil else 0L
         )
+        return ManualSessionObservation(state, if (externalChange) !quiet else null)
     }
 
     fun requesting(state: ManualSessionState, enable: Boolean, now: Long): ManualSessionState =
